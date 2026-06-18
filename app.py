@@ -13,11 +13,20 @@ TCC - Engenharia Civil - UNINTER - 2026
 
 from datetime import datetime
 
+import pandas as pd
 import streamlit as st
 
 from consolo_calc import DadosConsolo, dimensionar
 from exportar import gerar_csv, gerar_excel
 from memorial_pdf import gerar_pdf
+from sensibilidade import (
+    gerar_serie,
+    grafico_aproveitamento_biela,
+    grafico_armaduras,
+    grafico_forcas,
+    tabela_parametrica,
+    _intervalo_padrao,
+)
 from visualizacao import desenhar_consolo
 
 
@@ -92,7 +101,6 @@ r = dimensionar(dados)
 # ============================================================
 col1, col2 = st.columns([1, 1])
 
-# ---- Coluna 1: classificacao e forcas ----
 with col1:
     st.subheader("1. Classificacao do consolo")
     st.write(f"d = h − d' = {dados.h:.1f} − {dados.d_linha:.1f} = **{r['d']:.1f} cm**")
@@ -115,7 +123,6 @@ with col1:
     st.write(f"Forca no tirante Rsd = **{r['Rsd']:.2f} kN**")
     st.write(f"Forca na biela Fc = **{r['Fc']:.2f} kN**")
 
-# ---- Coluna 2: armaduras e verificacoes ----
 with col2:
     st.subheader("4. Armaduras calculadas")
     st.metric("Tirante principal — As", f"{r['As_tirante']:.2f} cm²")
@@ -140,16 +147,15 @@ st.divider()
 st.subheader("6. Diagrama esquematico do consolo")
 st.markdown(
     "Representacao grafica da geometria, da carga aplicada e do modelo "
-    "de bielas e tirantes. As cotas e o angulo da biela sao atualizados "
-    "automaticamente conforme os dados de entrada."
+    "de bielas e tirantes."
 )
 
-fig = desenhar_consolo(dados, r)
-st.pyplot(fig, use_container_width=True)
+fig_diagrama = desenhar_consolo(dados, r)
+st.pyplot(fig_diagrama, use_container_width=True)
 
 
 # ============================================================
-# Downloads do memorial / exportacao
+# Downloads
 # ============================================================
 st.divider()
 st.subheader("7. Downloads e exportacao")
@@ -164,12 +170,10 @@ st.markdown(
 ts = datetime.now().strftime("%Y%m%d_%H%M")
 
 col_pdf, col_xlsx, col_csv = st.columns(3)
-
 with col_pdf:
-    pdf_bytes = gerar_pdf(dados, r)
     st.download_button(
         label="📄 Memorial PDF",
-        data=pdf_bytes,
+        data=gerar_pdf(dados, r),
         file_name=f"memorial_consolocalc_{ts}.pdf",
         mime="application/pdf",
         type="primary",
@@ -178,10 +182,9 @@ with col_pdf:
     st.caption("Relatorio formatado A4 com diagrama")
 
 with col_xlsx:
-    xlsx_bytes = gerar_excel(dados, r)
     st.download_button(
         label="📊 Planilha Excel",
-        data=xlsx_bytes,
+        data=gerar_excel(dados, r),
         file_name=f"consolocalc_{ts}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
@@ -189,15 +192,140 @@ with col_xlsx:
     st.caption("3 abas: entrada, resultados, memorial")
 
 with col_csv:
-    csv_str = gerar_csv(dados, r)
     st.download_button(
         label="📋 CSV simples",
-        data=csv_str,
+        data=gerar_csv(dados, r),
         file_name=f"consolocalc_{ts}.csv",
         mime="text/csv",
         use_container_width=True,
     )
     st.caption("Formato universal para analises")
+
+
+# ============================================================
+# Analise de sensibilidade - NOVO
+# ============================================================
+st.divider()
+st.subheader("8. Analise de sensibilidade")
+st.markdown(
+    "Estude como os resultados variam ao alterar um unico parametro, "
+    "mantendo os demais fixos. Util para identificar quais variaveis "
+    "tem maior impacto no dimensionamento e para realizar **analises "
+    "parametricas comparativas** entre cenarios."
+)
+
+# Parametro a variar
+parametros_disponiveis = {
+    "a (distancia da carga)": ("a", "cm"),
+    "h (altura)": ("h", "cm"),
+    "b (largura)": ("b", "cm"),
+    "fck (concreto)": ("fck", "MPa"),
+    "Vk (forca vertical)": ("Vk", "kN"),
+    "Hk (forca horizontal)": ("Hk", "kN"),
+    "d' (cobrimento)": ("d_linha", "cm"),
+}
+
+col_param, col_inicio, col_fim, col_passo = st.columns([2, 1, 1, 1])
+
+with col_param:
+    label_escolhido = st.selectbox(
+        "Parametro a variar:",
+        list(parametros_disponiveis.keys()),
+        index=0,
+    )
+    nome_param, unidade_param = parametros_disponiveis[label_escolhido]
+    valor_atual = getattr(dados, nome_param)
+    inicio_padrao, fim_padrao, passo_padrao = _intervalo_padrao(
+        nome_param, float(valor_atual)
+    )
+
+with col_inicio:
+    inicio = st.number_input(
+        f"Inicio ({unidade_param})",
+        value=float(round(inicio_padrao, 2)),
+        step=float(passo_padrao),
+        key="ini",
+    )
+with col_fim:
+    fim = st.number_input(
+        f"Fim ({unidade_param})",
+        value=float(round(fim_padrao, 2)),
+        step=float(passo_padrao),
+        key="fim",
+    )
+with col_passo:
+    passo = st.number_input(
+        f"Passo ({unidade_param})",
+        value=float(round(passo_padrao, 2)),
+        min_value=0.1,
+        step=0.5,
+        key="passo",
+    )
+
+if inicio >= fim:
+    st.warning("O valor inicial deve ser menor que o final.")
+elif (fim - inicio) / passo > 200:
+    st.warning("Intervalo muito amplo ou passo muito pequeno. "
+               "Aumente o passo ou reduza o intervalo.")
+else:
+    serie = gerar_serie(dados, nome_param, inicio, fim, passo)
+
+    if not serie:
+        st.warning("Nenhum ponto valido foi gerado neste intervalo. "
+                   "Os consolos podem ter sido classificados como 'longo'.")
+    else:
+        # Tres graficos lado a lado em abas
+        tab_arm, tab_biela, tab_forcas, tab_dados = st.tabs([
+            "📈 Armaduras",
+            "🛡️ Aproveitamento da biela",
+            "💪 Forcas (Rsd e Fc)",
+            "📋 Tabela parametrica",
+        ])
+
+        with tab_arm:
+            st.plotly_chart(
+                grafico_armaduras(serie, label_escolhido, unidade_param),
+                use_container_width=True,
+            )
+            st.caption(
+                "Variacao de A_s do tirante principal e da armadura de costura "
+                "em funcao do parametro selecionado. Quanto maior a inclinacao "
+                "da curva, mais sensivel o resultado a esse parametro."
+            )
+
+        with tab_biela:
+            st.plotly_chart(
+                grafico_aproveitamento_biela(serie, label_escolhido,
+                                             unidade_param),
+                use_container_width=True,
+            )
+            st.caption(
+                "Aproveitamento da biela comprimida em relacao ao limite. "
+                "Verde: regiao segura. Amarelo: alerta (80-100%). "
+                "Vermelho: ruptura por esmagamento (>100%)."
+            )
+
+        with tab_forcas:
+            st.plotly_chart(
+                grafico_forcas(serie, label_escolhido, unidade_param),
+                use_container_width=True,
+            )
+            st.caption(
+                "Forcas atuantes no modelo de bielas e tirantes. "
+                "R_sd e a tracao no tirante; F_c e a compressao na biela."
+            )
+
+        with tab_dados:
+            tabela = tabela_parametrica(serie)
+            df = pd.DataFrame(tabela)
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            csv_param = df.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                label="📥 Baixar tabela parametrica (CSV)",
+                data=csv_param,
+                file_name=f"analise_param_{nome_param}_{ts}.csv",
+                mime="text/csv",
+            )
 
 
 # ============================================================
