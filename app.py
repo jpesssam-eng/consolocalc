@@ -13,6 +13,7 @@ TCC - Engenharia Civil - UNINTER - 2026
 
 import streamlit as st
 from consolo_calc import DadosConsolo, dimensionar
+from visualizacao import desenhar_consolo
 
 
 # ============================================================
@@ -125,6 +126,21 @@ with col2:
         st.success("✅ Biela comprimida — OK")
     else:
         st.error("❌ Biela comprimida ESMAGADA — aumentar secao ou fck")
+
+
+# ============================================================
+# Visualizacao grafica - NOVO
+# ============================================================
+st.divider()
+st.subheader("6. Diagrama esquematico do consolo")
+st.markdown(
+    "Representacao grafica da geometria, da carga aplicada e do modelo "
+    "de bielas e tirantes. As cotas e o angulo da biela são atualizados "
+    "automaticamente conforme os dados de entrada."
+)
+
+fig = desenhar_consolo(dados, r)
+st.pyplot(fig, use_container_width=True)
 
 
 # ============================================================
