@@ -11,8 +11,12 @@ Autor: Junior Pessoa da Silva
 TCC - Engenharia Civil - UNINTER - 2026
 """
 
+from datetime import datetime
+
 import streamlit as st
+
 from consolo_calc import DadosConsolo, dimensionar
+from memorial_pdf import gerar_pdf
 from visualizacao import desenhar_consolo
 
 
@@ -129,18 +133,52 @@ with col2:
 
 
 # ============================================================
-# Visualizacao grafica - NOVO
+# Visualizacao grafica
 # ============================================================
 st.divider()
 st.subheader("6. Diagrama esquematico do consolo")
 st.markdown(
     "Representacao grafica da geometria, da carga aplicada e do modelo "
-    "de bielas e tirantes. As cotas e o angulo da biela são atualizados "
+    "de bielas e tirantes. As cotas e o angulo da biela sao atualizados "
     "automaticamente conforme os dados de entrada."
 )
 
 fig = desenhar_consolo(dados, r)
 st.pyplot(fig, use_container_width=True)
+
+
+# ============================================================
+# Download do memorial em PDF - NOVO
+# ============================================================
+st.divider()
+st.subheader("7. Memorial de calculo")
+st.markdown(
+    "Baixe o memorial em PDF formatado, com todos os dados de entrada, "
+    "calculos, resultados e o diagrama esquematico. O documento "
+    "pode ser arquivado no projeto, anexado a relatorios ou impresso."
+)
+
+col_a, col_b = st.columns([1, 2])
+with col_a:
+    pdf_bytes = gerar_pdf(dados, r)
+    nome_arquivo = (
+        f"memorial_consolocalc_"
+        f"{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    )
+    st.download_button(
+        label="📄 Baixar memorial em PDF",
+        data=pdf_bytes,
+        file_name=nome_arquivo,
+        mime="application/pdf",
+        type="primary",
+        use_container_width=True,
+    )
+with col_b:
+    st.caption(
+        "O arquivo gerado contem 2 paginas: dados, calculos e verificacoes "
+        "na primeira, e o diagrama esquematico na segunda. "
+        "Pronto para impressao em A4."
+    )
 
 
 # ============================================================
