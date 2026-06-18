@@ -16,6 +16,7 @@ from datetime import datetime
 import streamlit as st
 
 from consolo_calc import DadosConsolo, dimensionar
+from exportar import gerar_csv, gerar_excel
 from memorial_pdf import gerar_pdf
 from visualizacao import desenhar_consolo
 
@@ -148,37 +149,55 @@ st.pyplot(fig, use_container_width=True)
 
 
 # ============================================================
-# Download do memorial em PDF - NOVO
+# Downloads do memorial / exportacao
 # ============================================================
 st.divider()
-st.subheader("7. Memorial de calculo")
+st.subheader("7. Downloads e exportacao")
 st.markdown(
-    "Baixe o memorial em PDF formatado, com todos os dados de entrada, "
-    "calculos, resultados e o diagrama esquematico. O documento "
-    "pode ser arquivado no projeto, anexado a relatorios ou impresso."
+    "Baixe os resultados em diferentes formatos. O **PDF** e o memorial de "
+    "calculo formatado, pronto para anexar a projetos. O **Excel** contem "
+    "tres abas (entrada, resultados e memorial textual), pronto para Power BI "
+    "ou Google Sheets. O **CSV** e o formato mais simples, util para analises "
+    "rapidas em qualquer ferramenta."
 )
 
-col_a, col_b = st.columns([1, 2])
-with col_a:
+ts = datetime.now().strftime("%Y%m%d_%H%M")
+
+col_pdf, col_xlsx, col_csv = st.columns(3)
+
+with col_pdf:
     pdf_bytes = gerar_pdf(dados, r)
-    nome_arquivo = (
-        f"memorial_consolocalc_"
-        f"{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-    )
     st.download_button(
-        label="📄 Baixar memorial em PDF",
+        label="📄 Memorial PDF",
         data=pdf_bytes,
-        file_name=nome_arquivo,
+        file_name=f"memorial_consolocalc_{ts}.pdf",
         mime="application/pdf",
         type="primary",
         use_container_width=True,
     )
-with col_b:
-    st.caption(
-        "O arquivo gerado contem 2 paginas: dados, calculos e verificacoes "
-        "na primeira, e o diagrama esquematico na segunda. "
-        "Pronto para impressao em A4."
+    st.caption("Relatorio formatado A4 com diagrama")
+
+with col_xlsx:
+    xlsx_bytes = gerar_excel(dados, r)
+    st.download_button(
+        label="📊 Planilha Excel",
+        data=xlsx_bytes,
+        file_name=f"consolocalc_{ts}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
     )
+    st.caption("3 abas: entrada, resultados, memorial")
+
+with col_csv:
+    csv_str = gerar_csv(dados, r)
+    st.download_button(
+        label="📋 CSV simples",
+        data=csv_str,
+        file_name=f"consolocalc_{ts}.csv",
+        mime="text/csv",
+        use_container_width=True,
+    )
+    st.caption("Formato universal para analises")
 
 
 # ============================================================
