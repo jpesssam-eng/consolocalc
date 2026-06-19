@@ -84,6 +84,26 @@ impedimento = st.sidebar.checkbox(
     help="Se marcado, Hd minimo = 0,2 * Vd (NBR 9062)"
 )
 
+# ============================================================
+# Seletor de metodo de calculo (sidebar)
+# ============================================================
+st.sidebar.divider()
+st.sidebar.subheader("Metodo de calculo do braco z")
+metodo = st.sidebar.radio(
+    "Selecione o metodo:",
+    options=["iterativo", "simplificado"],
+    format_func=lambda x: {
+        "iterativo": "Iterativo (z = d − 0,4·x)",
+        "simplificado": "Simplificado (z = 0,85·d)",
+    }[x],
+    help=(
+        "O metodo ITERATIVO atualiza z a partir do equilibrio interno "
+        "da secao, aproximando-se mais dos valores de referencia da "
+        "literatura. O metodo SIMPLIFICADO usa uma estimativa fixa, "
+        "mais conservadora."
+    ),
+)
+
 
 # ============================================================
 # Execucao do calculo
@@ -93,7 +113,24 @@ dados = DadosConsolo(
     a=a, h=h, b=b, d_linha=d_linha,
     impedimento_horizontal=impedimento
 )
-r = dimensionar(dados)
+r = dimensionar(dados, metodo=metodo)
+
+
+# ============================================================
+# Indicador de metodo (topo do conteudo principal)
+# ============================================================
+col_metodo1, col_metodo2 = st.columns([3, 1])
+with col_metodo1:
+    if metodo == "iterativo":
+        st.info(
+            f"**Metodo iterativo**: z convergiu em "
+            f"**{r['iteracoes']} iteracoes** "
+            f"({'convergiu' if r['convergiu'] else 'nao convergiu'})."
+        )
+    else:
+        st.warning(
+            "**Metodo simplificado**: utilizando z = 0,85·d como estimativa fixa."
+        )
 
 
 # ============================================================
@@ -118,7 +155,11 @@ with col1:
     st.write(f"Excentricidade e = (Hd/Vd) · d' = **{r['e']:.3f} cm**")
 
     st.subheader("3. Modelo de bielas e tirantes")
-    st.write(f"Braco de alavanca z = 0,85 · d = **{r['z']:.2f} cm**")
+    if metodo == "iterativo" and r["x"] is not None:
+        st.write(f"Profundidade da linha neutra x = **{r['x']:.2f} cm**")
+        st.write(f"Braco de alavanca z = d − 0,4·x = **{r['z']:.2f} cm**")
+    else:
+        st.write(f"Braco de alavanca z = 0,85·d = **{r['z']:.2f} cm**")
     st.write(f"Angulo da biela θ = **{r['theta_deg']:.2f}°**")
     st.write(f"Forca no tirante Rsd = **{r['Rsd']:.2f} kN**")
     st.write(f"Forca na biela Fc = **{r['Fc']:.2f} kN**")
@@ -138,6 +179,47 @@ with col2:
         st.success("✅ Biela comprimida — OK")
     else:
         st.error("❌ Biela comprimida ESMAGADA — aumentar secao ou fck")
+
+
+# ============================================================
+# Comparacao entre metodos (expansor)
+# ============================================================
+with st.expander("📊 Comparar os dois metodos (simplificado vs iterativo)"):
+    r_simp = dimensionar(dados, metodo="simplificado")
+    r_iter = dimensionar(dados, metodo="iterativo")
+
+    comp_df = pd.DataFrame({
+        "Variavel": ["z (cm)", "Rsd (kN)", "Fc (kN)",
+                     "As tirante (cm²)", "As costura (cm²)",
+                     "Aproveitamento biela (%)"],
+        "Simplificado": [
+            f"{r_simp['z']:.2f}", f"{r_simp['Rsd']:.2f}",
+            f"{r_simp['Fc']:.2f}", f"{r_simp['As_tirante']:.3f}",
+            f"{r_simp['As_costura']:.3f}",
+            f"{r_simp['biela']['razao']*100:.1f}",
+        ],
+        "Iterativo": [
+            f"{r_iter['z']:.2f}", f"{r_iter['Rsd']:.2f}",
+            f"{r_iter['Fc']:.2f}", f"{r_iter['As_tirante']:.3f}",
+            f"{r_iter['As_costura']:.3f}",
+            f"{r_iter['biela']['razao']*100:.1f}",
+        ],
+        "Diferenca (%)": [
+            f"{(r_iter['z']-r_simp['z'])/r_simp['z']*100:+.1f}",
+            f"{(r_iter['Rsd']-r_simp['Rsd'])/r_simp['Rsd']*100:+.1f}",
+            f"{(r_iter['Fc']-r_simp['Fc'])/r_simp['Fc']*100:+.1f}",
+            f"{(r_iter['As_tirante']-r_simp['As_tirante'])/r_simp['As_tirante']*100:+.1f}",
+            f"{(r_iter['As_costura']-r_simp['As_costura'])/r_simp['As_costura']*100:+.1f}",
+            f"{(r_iter['biela']['razao']-r_simp['biela']['razao'])/r_simp['biela']['razao']*100:+.1f}",
+        ],
+    })
+    st.dataframe(comp_df, use_container_width=True, hide_index=True)
+    st.caption(
+        "O metodo iterativo produz valores menores de Rsd e As, pois leva em "
+        "conta o real braco de alavanca da secao apos o equilibrio interno. "
+        "O metodo simplificado e mais conservador, util como verificacao "
+        "rapida de seguranca."
+    )
 
 
 # ============================================================
@@ -203,7 +285,7 @@ with col_csv:
 
 
 # ============================================================
-# Analise de sensibilidade - NOVO
+# Analise de sensibilidade
 # ============================================================
 st.divider()
 st.subheader("8. Analise de sensibilidade")
@@ -214,7 +296,6 @@ st.markdown(
     "parametricas comparativas** entre cenarios."
 )
 
-# Parametro a variar
 parametros_disponiveis = {
     "a (distancia da carga)": ("a", "cm"),
     "h (altura)": ("h", "cm"),
@@ -268,13 +349,12 @@ elif (fim - inicio) / passo > 200:
     st.warning("Intervalo muito amplo ou passo muito pequeno. "
                "Aumente o passo ou reduza o intervalo.")
 else:
-    serie = gerar_serie(dados, nome_param, inicio, fim, passo)
+    serie = gerar_serie(dados, nome_param, inicio, fim, passo, metodo=metodo)
 
     if not serie:
         st.warning("Nenhum ponto valido foi gerado neste intervalo. "
                    "Os consolos podem ter sido classificados como 'longo'.")
     else:
-        # Tres graficos lado a lado em abas
         tab_arm, tab_biela, tab_forcas, tab_dados = st.tabs([
             "📈 Armaduras",
             "🛡️ Aproveitamento da biela",
@@ -289,8 +369,7 @@ else:
             )
             st.caption(
                 "Variacao de A_s do tirante principal e da armadura de costura "
-                "em funcao do parametro selecionado. Quanto maior a inclinacao "
-                "da curva, mais sensivel o resultado a esse parametro."
+                "em funcao do parametro selecionado."
             )
 
         with tab_biela:

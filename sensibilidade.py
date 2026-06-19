@@ -55,10 +55,17 @@ def _intervalo_padrao(parametro: str, valor_atual: float):
 
 
 def gerar_serie(dados_base: DadosConsolo, parametro: str,
-                inicio: float, fim: float, passo: float):
+                inicio: float, fim: float, passo: float,
+                metodo: str = "iterativo"):
     """
     Gera uma serie de resultados variando um parametro e mantendo
     os demais constantes.
+
+    Parametros:
+        dados_base : DadosConsolo com a configuracao de base
+        parametro  : nome do atributo a variar (ex: 'a', 'Vk', 'fck')
+        inicio, fim, passo : intervalo de variacao
+        metodo     : 'simplificado' (z=0,85d) ou 'iterativo' (padrao)
 
     Retorna uma lista de dicionarios com:
         valor_parametro, tipo, As_tirante, As_costura, Rsd, Fc,
@@ -71,7 +78,7 @@ def gerar_serie(dados_base: DadosConsolo, parametro: str,
         # Cria uma copia do DadosConsolo substituindo o parametro
         dados_var = replace(dados_base, **{parametro: float(v)})
         try:
-            r = dimensionar(dados_var)
+            r = dimensionar(dados_var, metodo=metodo)
             # Pula consolos longos (fora do escopo do modelo)
             if r["tipo"] == "longo":
                 continue
