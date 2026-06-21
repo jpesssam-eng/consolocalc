@@ -40,11 +40,167 @@ st.set_page_config(
     layout="wide"
 )
 
+
+# ============================================================
+# Funcoes com cache (otimizacao de performance)
+# ============================================================
+@st.cache_data(show_spinner=False)
+def _calculo_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo):
+    """Executa o dimensionamento e retorna o resultado em cache."""
+    dados = DadosConsolo(
+        fck=fck, fyk=fyk, Vk=Vk, Hk=Hk, a=a, h=h, b=b,
+        d_linha=d_linha, impedimento_horizontal=imp,
+    )
+    r = dimensionar(dados, metodo=metodo)
+    return dados, r
+
+
+@st.cache_data(show_spinner=False)
+def _pdf_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo):
+    """Gera o PDF do memorial em cache."""
+    dados, r = _calculo_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo)
+    return gerar_pdf(dados, r)
+
+
+@st.cache_data(show_spinner=False)
+def _excel_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo):
+    """Gera a planilha Excel em cache."""
+    dados, r = _calculo_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo)
+    return gerar_excel(dados, r)
+
+
+@st.cache_data(show_spinner=False)
+def _csv_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo):
+    """Gera o CSV em cache."""
+    dados, r = _calculo_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo)
+    return gerar_csv(dados, r)
+
+
+@st.cache_data(show_spinner="Gerando pacote completo...")
+def _zip_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo):
+    """Gera o pacote ZIP em cache."""
+    dados, r = _calculo_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, imp, metodo)
+    return gerar_pacote_zip(dados, r, metodo=metodo)
+
+
 st.title("🏗️ ConsoloCalc")
 st.markdown(
     "**Dimensionamento de consolos curtos de concreto armado**  \n"
     "Metodo de bielas e tirantes • NBR 6118:2023"
 )
+
+# ============================================================
+# Sobre a ferramenta (expansor recolhido por padrao)
+# ============================================================
+with st.expander("📘 Sobre a ferramenta e instrucoes de uso"):
+    tab_sobre, tab_metodo, tab_uso, tab_normas, tab_lim = st.tabs([
+        "🎯 Sobre",
+        "📐 Metodologia",
+        "📖 Como usar",
+        "📚 Normas",
+        "⚠️ Limitacoes",
+    ])
+
+    with tab_sobre:
+        st.markdown(
+            "**ConsoloCalc** e uma aplicacao web de codigo aberto para o "
+            "dimensionamento de consolos curtos de concreto armado segundo "
+            "a NBR 6118:2023, pelo metodo de bielas e tirantes.\n\n"
+            "Foi desenvolvida como Trabalho de Conclusao de Curso "
+            "(TCC) do Centro Universitario Internacional UNINTER, "
+            "como contribuicao a democratizacao do acesso a ferramentas "
+            "de calculo estrutural no Brasil.\n\n"
+            "**Caracteristicas principais:**\n"
+            "- Aplicacao web acessivel por qualquer navegador, sem instalacao\n"
+            "- Implementa dois metodos de calculo: simplificado e iterativo\n"
+            "- Gera memorial em PDF, planilha Excel e CSV para integracao com "
+            "Power BI ou Google Sheets\n"
+            "- Inclui analise de sensibilidade interativa com graficos\n"
+            "- Codigo-fonte publico sob licenca MIT\n\n"
+            "**Links:**\n"
+            "- Aplicacao publica: https://consolocalc.streamlit.app\n"
+            "- Codigo-fonte: https://github.com/jpesssam-eng/consolocalc"
+        )
+
+    with tab_metodo:
+        st.markdown(
+            "**Metodo de bielas e tirantes** modela o consolo como uma "
+            "trelica idealizada composta por:\n\n"
+            "- **Biela comprimida**: campo diagonal de compressao no concreto, "
+            "do ponto de aplicacao da carga ate a base do consolo\n"
+            "- **Tirante tracionado**: campo horizontal de tracao, absorvido "
+            "pela armadura principal proxima a face superior\n"
+            "- **Nos**: regioes de transferencia das forcas\n\n"
+            "**Equacoes principais (NBR 6118:2023, item 22.3):**\n\n"
+            "- Forca no tirante: Rsd = (Vd · a)/z + Hd · (d' + e)/z\n"
+            "- Forca na biela: Fc = (Vd + Hd · e/z) / sin(θ)\n"
+            "- Tensao limite na biela: σRd = 0,85 · αv2 · fcd, "
+            "com αv2 = 1 − fck/250\n\n"
+            "**Calculo do braco de alavanca z**:\n"
+            "- *Simplificado*: z = 0,85 · d (estimativa conservadora)\n"
+            "- *Iterativo*: z = d − 0,4·x (atualizado iterativamente "
+            "pelo equilibrio interno; converge em 3-5 iteracoes)\n\n"
+            "**Armadura de costura**: 0,40 · As,tirante para consolos curtos, "
+            "0,50 · As,tirante para consolos muito curtos."
+        )
+
+    with tab_uso:
+        st.markdown(
+            "**Passo a passo:**\n\n"
+            "1. Preencher os dados de entrada na **barra lateral** (materiais, "
+            "geometria, esforcos)\n"
+            "2. Escolher o **metodo de calculo do braco z** (recomendado: "
+            "iterativo)\n"
+            "3. Visualizar resultados em tempo real nas secoes 1 a 5\n"
+            "4. Conferir o **diagrama esquematico** na secao 6\n"
+            "5. **Baixar resultados** na secao 7 (pacote ZIP completo "
+            "recomendado)\n"
+            "6. Explorar a **analise de sensibilidade** interativa na "
+            "secao 8 para entender o impacto de cada parametro\n\n"
+            "**Dica:** passe o mouse sobre cada campo na sidebar para ver "
+            "tooltips explicativos com o significado fisico do parametro."
+        )
+
+    with tab_normas:
+        st.markdown(
+            "**Normas tecnicas aplicaveis:**\n\n"
+            "- **ABNT NBR 6118:2023** — Projeto de estruturas de concreto: "
+            "norma base para o calculo, define o metodo de bielas e tirantes "
+            "para regioes D (descontinuidades) no item 22.3.\n"
+            "- **ABNT NBR 9062:2017** — Projeto e execucao de estruturas de "
+            "concreto pre-moldado: aplicavel a consolos em estruturas pre-"
+            "fabricadas; exige Hd minima = 0,2·Vd quando ha impedimento ao "
+            "deslocamento horizontal.\n"
+            "- **ABNT NBR 6023:2018** — Referencias bibliograficas: "
+            "formatacao das citacoes neste TCC.\n\n"
+            "**Referencias teoricas:**\n\n"
+            "- ARAUJO (2014). Curso de Concreto Armado, vol. 4.\n"
+            "- EL DEBS (2017). Concreto pre-moldado: fundamentos e aplicacoes.\n"
+            "- SANTOS (2021). Projeto estrutural por bielas e tirantes.\n"
+            "- SCHLAICH, SCHAFER e JENNEWEIN (1987). Toward a consistent "
+            "design of structural concrete. PCI Journal, v.32, n.3.\n"
+            "- SILVA e GIONGO (2000). Modelos de bielas e tirantes aplicados "
+            "a estruturas de concreto armado. EESC-USP."
+        )
+
+    with tab_lim:
+        st.markdown(
+            "**Escopo atendido:**\n\n"
+            "- Consolos curtos (0,5 < a/d ≤ 1,0) e muito curtos (a/d ≤ 0,5)\n"
+            "- Concretos convencionais (classes C20 a C90)\n"
+            "- Acos CA-25, CA-50 e CA-60\n"
+            "- Cargas vertical e horizontal estaticas\n\n"
+            "**Nao contemplado:**\n\n"
+            "- Consolos longos (devem ser dimensionados como vigas em balanco)\n"
+            "- Detalhamento de barras (numero, diametro, ancoragem)\n"
+            "- Geracao de desenhos em DXF/AutoCAD\n"
+            "- Verificacao a fadiga ou acoes sismicas\n"
+            "- Concretos especiais (com fibras, autoadensavel, UHPC)\n"
+            "- Integracao direta com softwares comerciais (TQS, Eberick)\n\n"
+            "Estas limitacoes orientam as sugestoes de trabalhos futuros "
+            "apresentadas no TCC."
+        )
+
 st.divider()
 
 
@@ -56,33 +212,97 @@ st.sidebar.header("Dados de entrada")
 st.sidebar.subheader("Materiais")
 fck = st.sidebar.number_input(
     "fck — concreto (MPa)",
-    min_value=20.0, max_value=90.0, value=25.0, step=5.0
+    min_value=20.0, max_value=90.0, value=25.0, step=5.0,
+    help=(
+        "Resistencia caracteristica do concreto a compressao aos 28 dias. "
+        "Classes usuais: C20, C25, C30, C40, C50 (concretos convencionais); "
+        "C60-C90 (concretos de alto desempenho). A NBR 6118:2023 define "
+        "essas classes e os criterios de uso. Em consolos curtos, o fck "
+        "influencia principalmente a verificacao da biela comprimida."
+    ),
 )
 fyk = st.sidebar.number_input(
     "fyk — aco (MPa)",
     min_value=250.0, max_value=600.0, value=500.0, step=50.0,
-    help="CA-50 → 500 MPa | CA-25 → 250 MPa"
+    help=(
+        "Resistencia caracteristica do aco ao escoamento. "
+        "CA-50 → 500 MPa (mais comum no Brasil) | "
+        "CA-25 → 250 MPa (uso restrito a estribos finos) | "
+        "CA-60 → 600 MPa (telas soldadas). "
+        "Define a area de aco necessaria pela equacao As = Rsd / fyd."
+    ),
 )
 
 st.sidebar.subheader("Geometria (cm)")
-a = st.sidebar.number_input("a — distancia da carga a face do pilar",
-                            min_value=1.0, value=20.0, step=1.0)
-h = st.sidebar.number_input("h — altura total do consolo",
-                            min_value=10.0, value=40.0, step=1.0)
-b = st.sidebar.number_input("b — largura do consolo",
-                            min_value=10.0, value=20.0, step=1.0)
-d_linha = st.sidebar.number_input("d' — cobrimento ate CG da armadura",
-                                  min_value=2.0, value=4.0, step=0.5)
+a = st.sidebar.number_input(
+    "a — distancia da carga a face do pilar",
+    min_value=1.0, value=20.0, step=1.0,
+    help=(
+        "Distancia horizontal entre o ponto de aplicacao da carga vertical "
+        "e a face do pilar de apoio. Em consolos curtos, esta distancia "
+        "determina a relacao a/d que classifica o consolo: "
+        "a/d ≤ 0,5 → muito curto; 0,5 < a/d ≤ 1,0 → curto; "
+        "a/d > 1,0 → longo (dimensionar como viga em balanco)."
+    ),
+)
+h = st.sidebar.number_input(
+    "h — altura total do consolo",
+    min_value=10.0, value=40.0, step=1.0,
+    help=(
+        "Altura total da secao do consolo, medida do topo a base. "
+        "Influencia diretamente o braco de alavanca z = d - 0,4x "
+        "e o angulo da biela. Pratica usual em pre-fabricados: h ≈ 1,2 · a."
+    ),
+)
+b = st.sidebar.number_input(
+    "b — largura do consolo",
+    min_value=10.0, value=20.0, step=1.0,
+    help=(
+        "Largura (espessura) do consolo, medida perpendicularmente ao plano "
+        "do desenho. Geralmente coincide com a largura do pilar de apoio "
+        "para garantir continuidade da biela comprimida. Influencia a "
+        "verificacao da biela: σ = Fc / (b · 0,2·h)."
+    ),
+)
+d_linha = st.sidebar.number_input(
+    "d' — cobrimento ate CG da armadura",
+    min_value=2.0, value=4.0, step=0.5,
+    help=(
+        "Distancia da face superior tracionada ate o centro de gravidade "
+        "da armadura do tirante principal. Inclui o cobrimento nominal "
+        "exigido pela NBR 6118:2023 (Tabela 7.2, classe de agressividade) "
+        "mais metade do diametro das barras. Valor tipico: 3 a 5 cm."
+    ),
+)
 
 st.sidebar.subheader("Esforcos (kN)")
-Vk = st.sidebar.number_input("Vk — forca vertical",
-                             min_value=0.0, value=100.0, step=10.0)
-Hk = st.sidebar.number_input("Hk — forca horizontal",
-                             min_value=0.0, value=0.0, step=10.0)
+Vk = st.sidebar.number_input(
+    "Vk — forca vertical",
+    min_value=0.0, value=100.0, step=10.0,
+    help=(
+        "Forca vertical caracteristica (valor sem majoracao) aplicada "
+        "no consolo. Sera multiplicada por γf = 1,4 para obter Vd. "
+        "Tipicamente, e a reacao de apoio da viga apoiada sobre o consolo."
+    ),
+)
+Hk = st.sidebar.number_input(
+    "Hk — forca horizontal",
+    min_value=0.0, value=0.0, step=10.0,
+    help=(
+        "Forca horizontal caracteristica (valor sem majoracao). "
+        "Causada por dilatacao termica, frenagem, retracao do concreto "
+        "ou imperfeicoes geometricas. Aumenta a tracao no tirante e "
+        "introduz excentricidade na carga vertical."
+    ),
+)
 
 impedimento = st.sidebar.checkbox(
     "Impedimento de deslocamento horizontal",
-    help="Se marcado, Hd minimo = 0,2 * Vd (NBR 9062)"
+    help=(
+        "Marque se o consolo restringe o deslocamento horizontal do "
+        "elemento apoiado (sem aparelho de neoprene livre). Nesse caso, "
+        "a NBR 9062:2017 exige Hd minima = 0,2 · Vd, conservadoramente."
+    ),
 )
 
 # ============================================================
@@ -253,7 +473,7 @@ ts = datetime.now().strftime("%Y%m%d_%H%M")
 # Botao destaque: PACOTE COMPLETO (ZIP)
 st.download_button(
     label="📦 BAIXAR PACOTE COMPLETO (.zip)",
-    data=gerar_pacote_zip(dados, r, metodo=metodo),
+    data=_zip_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, impedimento, metodo),
     file_name=f"consolocalc_pacote_{ts}.zip",
     mime="application/zip",
     type="primary",
@@ -270,7 +490,7 @@ col_pdf, col_xlsx, col_csv = st.columns(3)
 with col_pdf:
     st.download_button(
         label="📄 Memorial PDF",
-        data=gerar_pdf(dados, r),
+        data=_pdf_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, impedimento, metodo),
         file_name=f"memorial_consolocalc_{ts}.pdf",
         mime="application/pdf",
         use_container_width=True,
@@ -280,7 +500,7 @@ with col_pdf:
 with col_xlsx:
     st.download_button(
         label="📊 Planilha Excel",
-        data=gerar_excel(dados, r),
+        data=_excel_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, impedimento, metodo),
         file_name=f"consolocalc_{ts}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
@@ -290,7 +510,7 @@ with col_xlsx:
 with col_csv:
     st.download_button(
         label="📋 CSV simples",
-        data=gerar_csv(dados, r),
+        data=_csv_cached(fck, fyk, Vk, Hk, a, h, b, d_linha, impedimento, metodo),
         file_name=f"consolocalc_{ts}.csv",
         mime="text/csv",
         use_container_width=True,

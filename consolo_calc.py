@@ -31,7 +31,7 @@ GAMMA_S = 1.15   # minoracao da resistencia do aco
 GAMMA_F = 1.4    # majoracao das acoes (combinacao normal)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DadosConsolo:
     """
     Estrutura com os dados de entrada de um consolo curto.
