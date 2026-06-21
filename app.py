@@ -19,6 +19,7 @@ import streamlit as st
 from consolo_calc import DadosConsolo, dimensionar
 from exportar import gerar_csv, gerar_excel
 from memorial_pdf import gerar_pdf
+from pacote_completo import gerar_pacote_zip
 from sensibilidade import (
     gerar_serie,
     grafico_aproveitamento_biela,
@@ -242,14 +243,28 @@ st.pyplot(fig_diagrama, use_container_width=True)
 st.divider()
 st.subheader("7. Downloads e exportacao")
 st.markdown(
-    "Baixe os resultados em diferentes formatos. O **PDF** e o memorial de "
-    "calculo formatado, pronto para anexar a projetos. O **Excel** contem "
-    "tres abas (entrada, resultados e memorial textual), pronto para Power BI "
-    "ou Google Sheets. O **CSV** e o formato mais simples, util para analises "
-    "rapidas em qualquer ferramenta."
+    "Baixe os resultados em diferentes formatos. O **pacote completo (ZIP)** "
+    "e a opcao recomendada e contem todos os arquivos de uma so vez. Os "
+    "downloads individuais permitem obter apenas o formato desejado."
 )
 
 ts = datetime.now().strftime("%Y%m%d_%H%M")
+
+# Botao destaque: PACOTE COMPLETO (ZIP)
+st.download_button(
+    label="📦 BAIXAR PACOTE COMPLETO (.zip)",
+    data=gerar_pacote_zip(dados, r, metodo=metodo),
+    file_name=f"consolocalc_pacote_{ts}.zip",
+    mime="application/zip",
+    type="primary",
+    use_container_width=True,
+)
+st.caption(
+    "ZIP contendo: memorial PDF, planilha Excel, dados CSV, "
+    "diagrama PNG, grafico de sensibilidade PNG e README com resumo."
+)
+
+st.markdown("**Ou baixe arquivos individuais:**")
 
 col_pdf, col_xlsx, col_csv = st.columns(3)
 with col_pdf:
@@ -258,7 +273,6 @@ with col_pdf:
         data=gerar_pdf(dados, r),
         file_name=f"memorial_consolocalc_{ts}.pdf",
         mime="application/pdf",
-        type="primary",
         use_container_width=True,
     )
     st.caption("Relatorio formatado A4 com diagrama")
