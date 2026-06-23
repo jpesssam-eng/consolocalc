@@ -142,5 +142,8 @@ def desenhar_consolo(dados, resultado):
 
     ax.legend(loc="upper left", fontsize=10, framealpha=0.95)
 
-    plt.tight_layout()
+    try:
+        fig.subplots_adjust(left=0.08, right=0.95, top=0.92, bottom=0.08)
+    except Exception:
+        pass
     return fig
