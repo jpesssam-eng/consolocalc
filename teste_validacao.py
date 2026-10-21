@@ -1,9 +1,8 @@
 """
 ConsoloCalc - Teste de validacao
 =================================
-Script que executa casos de validacao da literatura tecnica,
-comparando os resultados das duas abordagens implementadas
-(simplificada e iterativa) com os valores de referencia.
+Compara os resultados da ferramenta com exemplos resolvidos da
+literatura tecnica.
 
 Para executar:
     python teste_validacao.py
@@ -14,149 +13,58 @@ TCC - Engenharia Civil - UNINTER - 2026
 
 from consolo_calc import DadosConsolo, dimensionar
 
+GAMMA_F = 1.4
 
-# ============================================================
-# Caso 1: Araujo (2014), vol. 4, p. 122
-# ============================================================
-CASO_ARAUJO = {
-    "fonte": "Araujo (2014), vol. 4, p. 122",
-    "descricao": (
-        "Vk = 100 kN aplicada na face superior; pilar quadrado 20 x 20 cm; "
-        "a = 60 cm; C25 (fck = 25 MPa); CA-50 (fyk = 500 MPa)."
-    ),
-    "dados": DadosConsolo(
-        fck=25.0, fyk=500.0,
-        Vk=100.0, Hk=0.0,
-        a=60.0, h=72.0, b=20.0, d_linha=4.0,
-        impedimento_horizontal=False,
-    ),
-    "referencia": {
-        "As_tirante": 2.42,  # cm²
-        "As_costura": 1.21,  # cm²
+CASOS = [
+    {
+        "fonte": "Santos (2021), Boxe 6.2 - Exemplo 2",
+        "descricao": ("C35, CA-50; Vd = 800 kN; Hd = 160 kN; ac = 20 cm; "
+                      "d = 37,5 cm; d' = 7,5 cm; b = 45 cm."),
+        "dados": DadosConsolo(fck=35.0, fyk=500.0,
+                              Vk=800.0 / GAMMA_F, Hk=160.0 / GAMMA_F,
+                              a=20.0, h=45.0, b=45.0, d_linha=7.5),
+        "referencia": {"z": 33.69, "Rsd": 784.0, "As_tirante": 18.0,
+                       "As_costura": 5.74},
     },
-}
-
-# ============================================================
-# Caso 2: Silva e Giongo (2000), p. 169 - PENDENTE
-# ============================================================
-# TODO: Atualizar com os valores reais do livro Silva e Giongo (2000).
-# Os dados abaixo sao um placeholder a ser substituido pelo
-# aluno apos consulta a referencia original.
-CASO_SILVA_GIONGO = {
-    "fonte": "Silva e Giongo (2000), p. 169 (PLACEHOLDER)",
-    "descricao": (
-        "Caso a ser preenchido com os dados reais do livro Silva e Giongo. "
-        "Esta entrada serve como template — substitua pelos valores corretos."
-    ),
-    "dados": DadosConsolo(
-        fck=20.0, fyk=500.0,
-        Vk=200.0, Hk=0.0,
-        a=30.0, h=60.0, b=80.0, d_linha=4.0,
-        impedimento_horizontal=False,
-    ),
-    "referencia": {
-        "As_tirante": None,  # preencher com valor do livro
-        "As_costura": None,  # preencher com valor do livro
+    {
+        "fonte": "Silva e Giongo (2000, ex. 6.1, apud Siqueira, 2018)",
+        "descricao": ("C20, CA-50; Fk = 610 kN; ac = 58 cm; h = 80 cm; "
+                      "b = 80 cm; d' = 2,5 cm; Hd = 0,2 Vd (NBR 9062, adotado)."),
+        "dados": DadosConsolo(fck=20.0, fyk=500.0, Vk=610.0, Hk=0.0,
+                              a=58.0, h=80.0, b=80.0, d_linha=2.5,
+                              impedimento_horizontal=True),
+        "referencia": {"Rsd": 875.2, "As_tirante": 20.2, "As_costura": 6.91},
     },
-}
+]
 
 
-def calcular_diferenca(valor_obtido: float, valor_referencia) -> str:
-    """Calcula a diferenca percentual com tratamento para referencia None."""
-    if valor_referencia is None or valor_referencia == 0:
-        return "n/d"
-    diff = (valor_obtido - valor_referencia) / valor_referencia * 100
-    return f"{diff:+.1f}%"
+def dif(v, ref):
+    return f"{(v - ref) / ref * 100:+.1f}%" if ref else "n/d"
 
 
-def imprimir_caso(caso: dict):
-    """Executa o caso com ambos os metodos e imprime relatorio comparativo."""
-    print("=" * 70)
-    print(f"  CASO: {caso['fonte']}")
-    print("=" * 70)
+def imprimir_caso(caso):
+    print("=" * 72)
+    print(f"  {caso['fonte']}")
     print(f"  {caso['descricao']}")
-    print()
-
-    dados = caso["dados"]
-    print(f"  Dados de entrada:")
-    print(f"    Vk = {dados.Vk} kN | Hk = {dados.Hk} kN")
-    print(f"    a = {dados.a} cm | h = {dados.h} cm | b = {dados.b} cm | d' = {dados.d_linha} cm")
-    print(f"    fck = {dados.fck} MPa | fyk = {dados.fyk} MPa")
-    print()
-
+    print("-" * 72)
     ref = caso["referencia"]
-    ref_As_tir = ref.get("As_tirante")
-    ref_As_cost = ref.get("As_costura")
-
-    # ------ Calculo com ambos os metodos ------
-    r_simp = dimensionar(dados, metodo="simplificado")
-    r_iter = dimensionar(dados, metodo="iterativo")
-
-    # ------ Tabela comparativa ------
-    print(f"  Comparacao entre metodos:")
-    print(f"  {'-' * 66}")
-    print(f"  {'Variavel':<22}{'Simplificado':>14}{'Iterativo':>14}{'Referencia':>14}")
-    print(f"  {'-' * 66}")
-
-    linhas = [
-        ("z (cm)", r_simp["z"], r_iter["z"], None),
-        ("Rsd (kN)", r_simp["Rsd"], r_iter["Rsd"], None),
-        ("Fc (kN)", r_simp["Fc"], r_iter["Fc"], None),
-        ("theta (graus)", r_simp["theta_deg"], r_iter["theta_deg"], None),
-        ("As tirante (cm²)", r_simp["As_tirante"], r_iter["As_tirante"], ref_As_tir),
-        ("As costura (cm²)", r_simp["As_costura"], r_iter["As_costura"], ref_As_cost),
-    ]
-
-    for nome, vsimp, viter, vref in linhas:
-        ref_txt = f"{vref:.3f}" if vref is not None else "—"
-        print(f"  {nome:<22}{vsimp:>14.3f}{viter:>14.3f}{ref_txt:>14}")
-    print(f"  {'-' * 66}")
-
-    # ------ Diferencas vs referencia ------
-    if ref_As_tir is not None:
-        print()
-        print(f"  Diferenca vs referencia:")
-        print(f"    As tirante (simplificado): "
-              f"{calcular_diferenca(r_simp['As_tirante'], ref_As_tir)}")
-        print(f"    As tirante (iterativo):    "
-              f"{calcular_diferenca(r_iter['As_tirante'], ref_As_tir)}")
-        if ref_As_cost is not None:
-            print(f"    As costura (simplificado): "
-                  f"{calcular_diferenca(r_simp['As_costura'], ref_As_cost)}")
-            print(f"    As costura (iterativo):    "
-                  f"{calcular_diferenca(r_iter['As_costura'], ref_As_cost)}")
-    else:
-        print()
-        print(f"  Diferenca vs referencia: nao disponivel "
-              f"(preencher dados de referencia no codigo)")
-
-    print()
-    print(f"  Iteracoes do metodo iterativo: {r_iter['iteracoes']} "
-          f"({'convergiu' if r_iter['convergiu'] else 'NAO convergiu'})")
-
-    # ------ Verificacao da biela ------
-    biela = r_iter["biela"]
-    status = "OK" if biela["ok"] else "ESMAGADA"
-    print(f"  Biela (iterativo): {status} ({biela['razao']*100:.1f}% aproveitamento)")
+    rs = dimensionar(caso["dados"], "santos")
+    rp = dimensionar(caso["dados"], "simplificado")
+    print(f"  {'Variavel':<20}{'Simplificado':>13}{'Rigoroso':>13}"
+          f"{'Referencia':>13}{'Dif. rig.':>11}")
+    for chave, nome in (("z", "z (cm)"), ("Rsd", "Rsd (kN)"),
+                        ("As_tirante", "As tirante (cm2)"),
+                        ("As_costura", "As costura (cm2)")):
+        r_ref = ref.get(chave)
+        ref_txt = f"{r_ref:.2f}" if r_ref else "-"
+        print(f"  {nome:<20}{rp[chave]:>13.2f}{rs[chave]:>13.2f}"
+              f"{ref_txt:>13}{dif(rs[chave], r_ref) if r_ref else '-':>11}")
+    b = rs["biela"]
+    print(f"  Tipo: {rs['tipo']} (ac/d = {rs['razao_ad']:.2f}); "
+          f"x/d = {b['x_d']:.2f} ({'OK' if b['ok'] else 'NAO ATENDE'})")
     print()
 
 
 if __name__ == "__main__":
-    print()
-    print("##" * 35)
-    print("  TESTES DE VALIDACAO - CONSOLOCALC")
-    print("##" * 35)
-    print()
-
-    imprimir_caso(CASO_ARAUJO)
-    imprimir_caso(CASO_SILVA_GIONGO)
-
-    print("=" * 70)
-    print("  CONCLUSAO")
-    print("=" * 70)
-    print(
-        "  O metodo iterativo produz valores significativamente mais\n"
-        "  proximos das referencias bibliograficas que o metodo simplificado.\n"
-        "  A diferenca residual deve-se a variacoes entre metodos rigorosos\n"
-        "  (NBR 6118:2023) e abordagens empiricas adotadas por alguns autores.\n"
-    )
+    for caso in CASOS:
+        imprimir_caso(caso)

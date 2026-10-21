@@ -56,7 +56,7 @@ def _intervalo_padrao(parametro: str, valor_atual: float):
 
 def gerar_serie(dados_base: DadosConsolo, parametro: str,
                 inicio: float, fim: float, passo: float,
-                metodo: str = "iterativo"):
+                metodo: str = "santos"):
     """
     Gera uma serie de resultados variando um parametro e mantendo
     os demais constantes.
@@ -65,7 +65,7 @@ def gerar_serie(dados_base: DadosConsolo, parametro: str,
         dados_base : DadosConsolo com a configuracao de base
         parametro  : nome do atributo a variar (ex: 'a', 'Vk', 'fck')
         inicio, fim, passo : intervalo de variacao
-        metodo     : 'simplificado' (z=0,85d) ou 'iterativo' (padrao)
+        metodo     : 'simplificado' (z=0,85d) ou 'santos' (padrao)
 
     Retorna uma lista de dicionarios com:
         valor_parametro, tipo, As_tirante, As_costura, Rsd, Fc,
@@ -173,7 +173,7 @@ def grafico_aproveitamento_biela(serie, parametro_nome: str, unidade: str):
                       annotation_text="80% (alerta)",
                       annotation_position="right")
         fig.add_hline(y=100, line=dict(color=COR_ERRO, width=1.5, dash="dash"),
-                      annotation_text="100% (ruptura)",
+                      annotation_text="100% (x/d = 0,4)",
                       annotation_position="right")
 
     # Curva principal
@@ -189,7 +189,7 @@ def grafico_aproveitamento_biela(serie, parametro_nome: str, unidade: str):
     ))
 
     fig.update_layout(
-        title=f"Aproveitamento da biela em funcao de {parametro_nome}",
+        title=f"Aproveitamento da ductilidade (x/d ÷ 0,4) em funcao de {parametro_nome}",
         xaxis_title=f"{parametro_nome} ({unidade})",
         yaxis_title="Aproveitamento (%)",
         template="simple_white",
@@ -252,6 +252,6 @@ def tabela_parametrica(serie):
         "Fc (kN)": round(r["Fc"], 2),
         "As tirante (cm²)": round(r["As_tirante"], 2),
         "As costura (cm²)": round(r["As_costura"], 2),
-        "Aproveitamento biela (%)": round(r["aproveitamento_biela"], 1),
-        "Status biela": "OK" if r["biela_ok"] else "ESMAGADA",
+        "Aproveitamento x/d (%)": round(r["aproveitamento_biela"], 1),
+        "Status (no A / x/d)": "OK" if r["biela_ok"] else "NAO ATENDE",
     } for r in serie]

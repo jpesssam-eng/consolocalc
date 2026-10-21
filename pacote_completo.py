@@ -35,7 +35,7 @@ COR_PRIMARIA = "#1A4F7A"
 
 def _gerar_grafico_sensibilidade_png(dados: DadosConsolo, parametro: str,
                                      inicio: float, fim: float, passo: float,
-                                     metodo: str = "iterativo",
+                                     metodo: str = "santos",
                                      titulo_param: str = "parametro",
                                      unidade: str = "") -> bytes:
     """
@@ -102,16 +102,16 @@ def _gerar_readme(dados: DadosConsolo, resultado: dict, metodo: str) -> str:
     """Gera README textual descrevendo o pacote."""
     ts = datetime.now().strftime("%d/%m/%Y as %H:%M")
     biela = resultado["biela"]
-    status_biela = "OK" if biela["ok"] else "ESMAGADA — RISCO DE RUPTURA"
+    status_biela = "OK" if biela["ok"] else "NAO ATENDE (no A / x/d) — REVISAR SECAO"
 
     metodo_descricao = {
-        "iterativo": "iterativo (z = d - 0,4*x, atualizado por convergencia)",
+        "santos": "rigoroso - Santos, 2021 (z = d - y/2, equilibrio do no A)",
         "simplificado": "simplificado (z = 0,85*d, estimativa fixa)",
     }.get(metodo, metodo)
 
     iteracoes_txt = ""
-    if metodo == "iterativo":
-        iteracoes_txt = f"  Iteracoes ate convergencia: {resultado.get('iteracoes', 'n/a')}\n"
+    if metodo == "santos":
+        iteracoes_txt = f"  a1 = {resultado.get('a1', 0):.2f} cm; y = {resultado.get('y', 0):.2f} cm\n"
 
     return f"""===========================================================
   ConsoloCalc - Pacote de Resultados
@@ -223,7 +223,7 @@ def _gerar_readme(dados: DadosConsolo, resultado: dict, metodo: str) -> str:
 
 
 def gerar_pacote_zip(dados: DadosConsolo, resultado: dict,
-                     metodo: str = "iterativo") -> bytes:
+                     metodo: str = "santos") -> bytes:
     """
     Empacota todos os artefatos do dimensionamento em um unico
     arquivo ZIP. Retorna os bytes prontos para download.

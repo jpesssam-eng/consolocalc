@@ -169,12 +169,13 @@ def gerar_pdf(dados, resultado) -> bytes:
     blocos.append(Paragraph("4. MODELO DE BIELAS E TIRANTES", e["secao"]))
     modelo = (
         f"Braço de alavanca: z = "
-        f"{'d − 0,4 · x' if resultado.get('metodo') == 'iterativo' else '0,85 · d'} = "
+        f"{'d − y/2 (Santos, 2021)' if resultado.get('metodo') == 'santos' else '0,85 · d'} = "
         f"<b>{resultado['z']:.2f} cm</b>.<br/>"
-        f"Ângulo da biela: θ = arctan(z/a) = "
+        f"Distância de cálculo: a = a<sub>1</sub>/2 + a<sub>c</sub> + e = {resultado['a_calc']:.2f} cm; "
+        f"ângulo da biela: θ = arctan(z/a) = "
         f"<b>{resultado['theta_deg']:.2f}°</b>.<br/>"
         f"Força de tração no tirante: R<sub>sd</sub> = "
-        f"V<sub>d</sub> · (a + e)/z + H<sub>d</sub> = <b>{resultado['Rsd']:.2f} kN</b>.<br/>"
+        f"V<sub>d</sub> · cotg θ + H<sub>d</sub> = <b>{resultado['Rsd']:.2f} kN</b>.<br/>"
         f"Força de compressão na biela: F<sub>c</sub> = "
         f"<b>{resultado['Fc']:.2f} kN</b>."
     )
@@ -192,21 +193,20 @@ def gerar_pdf(dados, resultado) -> bytes:
     blocos.append(t2)
 
     # ===== 6. Verificacao da biela =====
-    blocos.append(Paragraph("6. VERIFICAÇÃO DA BIELA COMPRIMIDA", e["secao"]))
+    blocos.append(Paragraph("6. VERIFICAÇÃO DO NÓ A E DUCTILIDADE", e["secao"]))
     biela = resultado["biela"]
     verif = (
-        f"Tensão atuante: σ<sub>atuante</sub> = "
-        f"<b>{biela['sigma_atuante_MPa']:.2f} MPa</b>.<br/>"
-        f"Tensão limite: σ<sub>lim</sub> = 0,85 · α<sub>v2</sub> · f<sub>cd</sub> = "
+        f"Tensão no nó A (pseudo-hidrostático): f<sub>cd1</sub> = 0,85 · α<sub>v2</sub> · f<sub>cd</sub> = "
         f"<b>{biela['sigma_limite_MPa']:.2f} MPa</b>.<br/>"
+        f"Ductilidade: x/d = <b>{biela['x_d']:.3f}</b> (limite 0,40; Santos, 2021).<br/>"
         f"Aproveitamento: <b>{biela['razao'] * 100:.1f}%</b>."
     )
     blocos.append(Paragraph(verif, e["corpo"]))
 
     status_texto = (
-        "✓ A biela ATENDE ao limite de tensão"
+        "✓ Nó A e ductilidade ATENDEM aos limites"
         if biela["ok"]
-        else "✗ A biela ESTÁ ESMAGADA — revisar dimensões ou fck"
+        else "✗ NÃO ATENDE — revisar dimensões ou fck"
     )
     estilo_status = ParagraphStyle(
         "Status", parent=e["corpo"], fontSize=11,

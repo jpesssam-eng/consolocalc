@@ -164,10 +164,10 @@ def gerar_excel(dados, resultado) -> bytes:
         ("Fc (forca na biela)", round(resultado["Fc"], 2), "kN"),
         ("As tirante", round(resultado["As_tirante"], 3), "cm2"),
         ("As costura", round(resultado["As_costura"], 3), "cm2"),
-        ("Sigma atuante na biela", round(biela["sigma_atuante_MPa"], 2), "MPa"),
-        ("Sigma limite na biela", round(biela["sigma_limite_MPa"], 2), "MPa"),
-        ("Aproveitamento da biela", round(biela["razao"] * 100, 1), "%"),
-        ("Status da biela", "OK" if biela["ok"] else "ESMAGADA", "-"),
+        ("x/d (ductilidade)", round(biela["x_d"], 3), "-"),
+        ("Tensao no no A (fcd1)", round(biela["sigma_limite_MPa"], 2), "MPa"),
+        ("Aproveitamento (x/d / 0,4)", round(biela["razao"] * 100, 1), "%"),
+        ("Status no A / ductilidade", "OK" if biela["ok"] else "NAO ATENDE", "-"),
     ]
 
     for i, (var, valor, unidade) in enumerate(linhas_result):
@@ -222,11 +222,10 @@ def gerar_excel(dados, resultado) -> bytes:
         ("Armaduras",
          f"As tirante = {resultado['As_tirante']:.2f} cm2. "
          f"As costura = {resultado['As_costura']:.2f} cm2."),
-        ("Verificacao da biela",
-         f"Tensao atuante = {biela['sigma_atuante_MPa']:.2f} MPa, "
-         f"tensao limite = {biela['sigma_limite_MPa']:.2f} MPa "
-         f"(aproveitamento de {biela['razao']*100:.1f}%). "
-         f"Status: {'biela atende ao limite' if biela['ok'] else 'biela esmagada'}."),
+        ("Verificacao do no A e ductilidade",
+         f"Tensao no no A = fcd1 = {biela['sigma_limite_MPa']:.2f} MPa; "
+         f"x/d = {biela['x_d']:.3f} (limite 0,40; aproveitamento de {biela['razao']*100:.1f}%). "
+         f"Status: {'atende' if biela['ok'] else 'nao atende'}."),
     ]
 
     for i, (titulo, texto) in enumerate(blocos_texto):
@@ -284,10 +283,10 @@ def gerar_csv(dados, resultado) -> str:
         f"resultado,Fc,{resultado['Fc']:.2f},kN",
         f"resultado,As_tirante,{resultado['As_tirante']:.3f},cm2",
         f"resultado,As_costura,{resultado['As_costura']:.3f},cm2",
-        f"verificacao,sigma_atuante,{biela['sigma_atuante_MPa']:.2f},MPa",
-        f"verificacao,sigma_limite,{biela['sigma_limite_MPa']:.2f},MPa",
-        f"verificacao,aproveitamento_biela,{biela['razao']*100:.2f},%",
-        f"verificacao,status_biela,{'OK' if biela['ok'] else 'ESMAGADA'},texto",
+        f"verificacao,x_d,{biela['x_d']:.4f},adimensional",
+        f"verificacao,fcd1_no_A,{biela['sigma_limite_MPa']:.2f},MPa",
+        f"verificacao,aproveitamento_ductilidade,{biela['razao']*100:.2f},%",
+        f"verificacao,status,{'OK' if biela['ok'] else 'NAO ATENDE'},texto",
     ]
 
     return "\n".join(linhas)

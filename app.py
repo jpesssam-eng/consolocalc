@@ -112,7 +112,7 @@ with st.expander("📘 Sobre a ferramenta e instrucoes de uso"):
             "de calculo estrutural no Brasil.\n\n"
             "**Caracteristicas principais:**\n"
             "- Aplicacao web acessivel por qualquer navegador, sem instalacao\n"
-            "- Implementa dois metodos de calculo: simplificado e iterativo\n"
+            "- Modelo de bielas e tirantes de Santos (2021), com metodo rigoroso e simplificado\n"
             "- Gera memorial em PDF, planilha Excel e CSV para integracao com "
             "Power BI ou Google Sheets\n"
             "- Inclui analise de sensibilidade interativa com graficos\n"
@@ -134,14 +134,16 @@ with st.expander("📘 Sobre a ferramenta e instrucoes de uso"):
             "**Equacoes principais (modelo de bielas e tirantes; Santos, 2021):**\n\n"
             "- Forca no tirante: Rsd = Vd · (a + e)/z + Hd (Santos, 2021)\n"
             "- Forca na biela: Fc = Vd / sin(θ), com cotg θ = (a + e)/z\n"
-            "- Tensao limite na biela: σRd = 0,85 · αv2 · fcd, "
+            "- Tensao no no A: σ = fcd1 = 0,85 · αv2 · fcd, "
             "com αv2 = 1 − fck/250\n\n"
             "**Calculo do braco de alavanca z**:\n"
-            "- *Simplificado*: z = 0,85 · d (estimativa conservadora)\n"
-            "- *Iterativo*: z = d − 0,4·x (atualizado iterativamente "
-            "pelo equilibrio interno; converge em 3-5 iteracoes)\n\n"
-            "**Armadura de costura**: 0,40 · As,tirante para consolos curtos, "
-            "0,50 · As,tirante para consolos muito curtos."
+            "- *Rigoroso (Santos, 2021)*: a1 = Vd/(b·fcd1); a = a1/2 + ac + e; "
+            "y = d − √(d² − 2·a1·a); z = d − y/2\n"
+            "- *Simplificado*: z = 0,85 · d (estimativa expedita)\n\n"
+            "**Verificacoes**: no A com tensao fcd1 = 0,85·αv2·fcd e "
+            "ductilidade x/d ≤ 0,4 (Santos, 2021); angulo da biela entre 30° e 63,4°.\n\n"
+            "**Armadura de costura (NBR 9062:2017)**: 0,40 · Vd·cotg θ/fyd para consolos curtos, "
+            "0,50 · Vd·cotg θ/fyd para consolos muito curtos."
         )
 
     with tab_uso:
@@ -150,7 +152,7 @@ with st.expander("📘 Sobre a ferramenta e instrucoes de uso"):
             "1. Preencher os dados de entrada na **barra lateral** (materiais, "
             "geometria, esforcos)\n"
             "2. Escolher o **metodo de calculo do braco z** (recomendado: "
-            "iterativo)\n"
+            "rigoroso — Santos, 2021)\n"
             "3. Visualizar resultados em tempo real nas secoes 1 a 5\n"
             "4. Conferir o **diagrama esquematico** na secao 6\n"
             "5. **Baixar resultados** na secao 7 (pacote ZIP completo "
@@ -250,7 +252,7 @@ h = st.sidebar.number_input(
     min_value=10.0, value=40.0, step=1.0,
     help=(
         "Altura total da secao do consolo, medida do topo a base. "
-        "Influencia diretamente o braco de alavanca z = d - 0,4x "
+        "Influencia diretamente o braco de alavanca z = d − y/2 "
         "e o angulo da biela. Pratica usual em pre-fabricados: h ≈ 1,2 · a."
     ),
 )
@@ -261,7 +263,7 @@ b = st.sidebar.number_input(
         "Largura (espessura) do consolo, medida perpendicularmente ao plano "
         "do desenho. Geralmente coincide com a largura do pilar de apoio "
         "para garantir continuidade da biela comprimida. Influencia a "
-        "verificacao da biela: σ = Fc / (b · 0,2·h)."
+        "largura do no A: a1 = Vd / (b · fcd1)."
     ),
 )
 d_linha = st.sidebar.number_input(
@@ -312,16 +314,15 @@ st.sidebar.divider()
 st.sidebar.subheader("Metodo de calculo do braco z")
 metodo = st.sidebar.radio(
     "Selecione o metodo:",
-    options=["iterativo", "simplificado"],
+    options=["santos", "simplificado"],
     format_func=lambda x: {
-        "iterativo": "Iterativo (z = d − 0,4·x)",
+        "santos": "Rigoroso — Santos, 2021 (z = d − y/2)",
         "simplificado": "Simplificado (z = 0,85·d)",
     }[x],
     help=(
-        "O metodo ITERATIVO atualiza z a partir do equilibrio interno "
-        "da secao, aproximando-se mais dos valores de referencia da "
-        "literatura. O metodo SIMPLIFICADO usa uma estimativa fixa, "
-        "mais conservadora."
+        "O metodo RIGOROSO determina z pelo equilibrio do no A "
+        "(modelo de Santos, 2021). O metodo SIMPLIFICADO adota "
+        "z = 0,85·d como estimativa expedita."
     ),
 )
 
@@ -342,11 +343,10 @@ r = dimensionar(dados, metodo=metodo)
 # ============================================================
 col_metodo1, col_metodo2 = st.columns([3, 1])
 with col_metodo1:
-    if metodo == "iterativo":
+    if metodo == "santos":
         st.info(
-            f"**Metodo iterativo**: z convergiu em "
-            f"**{r['iteracoes']} iteracoes** "
-            f"({'convergiu' if r['convergiu'] else 'nao convergiu'})."
+            "**Metodo rigoroso (Santos, 2021)**: z obtido pelo equilibrio "
+            "do no A pseudo-hidrostatico."
         )
     else:
         st.warning(
@@ -376,9 +376,11 @@ with col1:
     st.write(f"Excentricidade e = (Hd/Vd) · d' = **{r['e']:.3f} cm**")
 
     st.subheader("3. Modelo de bielas e tirantes")
-    if metodo == "iterativo" and r["x"] is not None:
-        st.write(f"Profundidade da linha neutra x = **{r['x']:.2f} cm**")
-        st.write(f"Braco de alavanca z = d − 0,4·x = **{r['z']:.2f} cm**")
+    st.write(f"Largura do no A: a1 = Vd/(b·fcd1) = **{r['a1']:.2f} cm**")
+    st.write(f"Distancia de calculo a = a1/2 + ac + e = **{r['a_calc']:.2f} cm**")
+    if metodo == "santos":
+        st.write(f"Altura do no A: y = **{r['y']:.2f} cm**")
+        st.write(f"Braco de alavanca z = d − y/2 = **{r['z']:.2f} cm**")
     else:
         st.write(f"Braco de alavanca z = 0,85·d = **{r['z']:.2f} cm**")
     st.write(f"Angulo da biela θ = **{r['theta_deg']:.2f}°**")
@@ -390,40 +392,41 @@ with col2:
     st.metric("Tirante principal — As", f"{r['As_tirante']:.2f} cm²")
     st.metric("Costura — As,cost",      f"{r['As_costura']:.2f} cm²")
 
-    st.subheader("5. Verificacao da biela comprimida")
+    st.subheader("5. Verificacao do no A e ductilidade")
     biela = r["biela"]
-    st.write(f"σ atuante = **{biela['sigma_atuante_MPa']:.2f} MPa**")
-    st.write(f"σ limite  = **{biela['sigma_limite_MPa']:.2f} MPa**")
+    st.write(f"Tensao no no A = fcd1 = **{biela['sigma_limite_MPa']:.2f} MPa**")
+    st.write(f"x/d = **{biela['x_d']:.3f}** (limite 0,40)")
     st.write(f"Aproveitamento = **{biela['razao']*100:.1f}%**")
 
-    if biela["ok"]:
-        st.success("✅ Biela comprimida — OK")
+    if not biela["viavel"]:
+        st.error("❌ A biela nao cabe na altura util — aumentar h, b ou fck")
+    elif biela["ok"]:
+        st.success("✅ No A e ductilidade (x/d ≤ 0,4) — OK")
     else:
-        st.error("❌ Biela comprimida ESMAGADA — aumentar secao ou fck")
+        st.error("❌ x/d > 0,4 — risco de ruptura fragil; aumentar h, b ou fck")
+    if not biela["angulo_ok"]:
+        st.warning("⚠️ Angulo da biela fora do intervalo 30°–63,4° (NBR 6118)")
 
 
 # ============================================================
 # Comparacao entre metodos (expansor)
 # ============================================================
-with st.expander("📊 Comparar os dois metodos (simplificado vs iterativo)"):
+with st.expander("📊 Comparar os dois metodos (simplificado vs rigoroso)"):
     r_simp = dimensionar(dados, metodo="simplificado")
-    r_iter = dimensionar(dados, metodo="iterativo")
+    r_iter = dimensionar(dados, metodo="santos")
 
     comp_df = pd.DataFrame({
         "Variavel": ["z (cm)", "Rsd (kN)", "Fc (kN)",
-                     "As tirante (cm²)", "As costura (cm²)",
-                     "Aproveitamento biela (%)"],
+                     "As tirante (cm²)", "As costura (cm²)"],
         "Simplificado": [
             f"{r_simp['z']:.2f}", f"{r_simp['Rsd']:.2f}",
             f"{r_simp['Fc']:.2f}", f"{r_simp['As_tirante']:.3f}",
             f"{r_simp['As_costura']:.3f}",
-            f"{r_simp['biela']['razao']*100:.1f}",
         ],
-        "Iterativo": [
+        "Rigoroso (Santos)": [
             f"{r_iter['z']:.2f}", f"{r_iter['Rsd']:.2f}",
             f"{r_iter['Fc']:.2f}", f"{r_iter['As_tirante']:.3f}",
             f"{r_iter['As_costura']:.3f}",
-            f"{r_iter['biela']['razao']*100:.1f}",
         ],
         "Diferenca (%)": [
             f"{(r_iter['z']-r_simp['z'])/r_simp['z']*100:+.1f}",
@@ -431,15 +434,13 @@ with st.expander("📊 Comparar os dois metodos (simplificado vs iterativo)"):
             f"{(r_iter['Fc']-r_simp['Fc'])/r_simp['Fc']*100:+.1f}",
             f"{(r_iter['As_tirante']-r_simp['As_tirante'])/r_simp['As_tirante']*100:+.1f}",
             f"{(r_iter['As_costura']-r_simp['As_costura'])/r_simp['As_costura']*100:+.1f}",
-            f"{(r_iter['biela']['razao']-r_simp['biela']['razao'])/r_simp['biela']['razao']*100:+.1f}",
         ],
     })
     st.dataframe(comp_df, use_container_width=True, hide_index=True)
     st.caption(
-        "O metodo iterativo produz valores menores de Rsd e As, pois leva em "
-        "conta o real braco de alavanca da secao apos o equilibrio interno. "
-        "O metodo simplificado e mais conservador, util como verificacao "
-        "rapida de seguranca."
+        "O metodo rigoroso obtem z pelo equilibrio do no A (Santos, 2021). "
+        "O metodo simplificado (z = 0,85·d) e uma estimativa expedita; "
+        "a diferenca entre ambos depende da geometria e do carregamento."
     )
 
 
