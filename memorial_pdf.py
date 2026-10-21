@@ -168,12 +168,13 @@ def gerar_pdf(dados, resultado) -> bytes:
     # ===== 4. Modelo bielas e tirantes =====
     blocos.append(Paragraph("4. MODELO DE BIELAS E TIRANTES", e["secao"]))
     modelo = (
-        f"Braço de alavanca: z = 0,85 · d = "
+        f"Braço de alavanca: z = "
+        f"{'d − 0,4 · x' if resultado.get('metodo') == 'iterativo' else '0,85 · d'} = "
         f"<b>{resultado['z']:.2f} cm</b>.<br/>"
         f"Ângulo da biela: θ = arctan(z/a) = "
         f"<b>{resultado['theta_deg']:.2f}°</b>.<br/>"
         f"Força de tração no tirante: R<sub>sd</sub> = "
-        f"<b>{resultado['Rsd']:.2f} kN</b>.<br/>"
+        f"V<sub>d</sub> · (a + e)/z + H<sub>d</sub> = <b>{resultado['Rsd']:.2f} kN</b>.<br/>"
         f"Força de compressão na biela: F<sub>c</sub> = "
         f"<b>{resultado['Fc']:.2f} kN</b>."
     )

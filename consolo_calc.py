@@ -102,6 +102,22 @@ def calcular_excentricidade(Hd: float, Vd: float, d_linha: float) -> float:
     return (Hd / Vd) * d_linha
 
 
+def _forca_tirante(Vd: float, Hd: float, a: float, e: float, z: float) -> float:
+    """
+    Forca de tracao no tirante pelo modelo de bielas e tirantes,
+    equivalente a flexo-tracao de grande excentricidade
+    (SANTOS, 2021, cap. 6):
+
+        Rsd = Vd * (a + e) / z + Hd   ( = Vd * cotg(theta) + Hd )
+
+    com e = (Hd / Vd) * d' (excentricidade de Vd devida a Hd em relacao
+    ao eixo do tirante). A forca horizontal entra integralmente no tirante.
+    Simplificacao: a distancia a e medida ate a face do pilar (a parcela
+    a1/2 do no inferior de Santos, 2021, e desprezada).
+    """
+    return Vd * (a + e) / z + Hd
+
+
 def _calcular_z_simplificado(d: float) -> dict:
     """
     Metodo simplificado: z = 0,85 * d.
@@ -119,7 +135,7 @@ def _calcular_z_iterativo(dados: DadosConsolo, Vd: float, Hd: float,
 
     Algoritmo:
         1. Estimativa inicial z = 0,85 * d
-        2. Calcular Rsd = (Vd*a + Hd*(d'+e)) / z
+        2. Calcular Rsd = Vd*(a + e)/z + Hd  (SANTOS, 2021)
         3. Determinar a profundidade da linha neutra x
            pelo equilibrio horizontal de forcas:
            As * fyd = 0,85 * fcd * b * x
@@ -138,7 +154,7 @@ def _calcular_z_iterativo(dados: DadosConsolo, Vd: float, Hd: float,
     convergiu = False
 
     for iteracao in range(1, max_iter + 1):
-        Rsd = (Vd * dados.a / z) + Hd * (dados.d_linha + e) / z
+        Rsd = _forca_tirante(Vd, Hd, dados.a, e, z)
         # Equilibrio horizontal: Rsd = 0,85 * fcd * b * x
         x = Rsd / (0.85 * fcd_kncm2 * dados.b)
         # Limite fisico: x nao pode exceder d
@@ -174,13 +190,14 @@ def calcular_forcas_no_modelo(dados: DadosConsolo, Vd: float, Hd: float,
     z = info_z["z"]
 
     # Forca de tracao no tirante (equilibrio de momentos)
-    Rsd = (Vd * dados.a / z) + Hd * (dados.d_linha + e) / z
+    Rsd = _forca_tirante(Vd, Hd, dados.a, e, z)
 
-    # Angulo da biela com a horizontal
-    theta = math.atan(z / dados.a)
+    # Angulo da biela com a horizontal: cotg(theta) = (a + e)/z
+    theta = math.atan(z / (dados.a + e))
 
-    # Forca de compressao na biela (equilibrio no no superior)
-    Fc = (Vd + Hd * e / z) / math.sin(theta)
+    # Forca de compressao na biela (equilibrio do no superior: a biela
+    # equilibra a componente vertical Vd)
+    Fc = Vd / math.sin(theta)
 
     return {
         "z": z, "x": info_z["x"], "theta": theta,
